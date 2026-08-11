@@ -77,9 +77,11 @@ content-type: application/json
 
 The full CRUD cycle (create, read, update, delete) was tested using the interactive **Try it out** feature at `/docs`.
 
-![Swagger UI - all endpoints](screenshots/swagger-endpoints.png)
-![Swagger UI - POST /tasks](screenshots/swagger-post.png)
-![Swagger UI - DELETE /tasks/{id}](screenshots/swagger-delete.png)
+![Swagger UI - all endpoints](screenshots/s1.png)
+![Swagger UI - GET /tasks/{id}](screenshots/s2.png)
+![Swagger UI - PUT /tasks/{id}](screenshots/s3.png)
+![Swagger UI - POST /tasks](screenshots/s4.png)
+![Swagger UI - DELETE /tasks/{id}](screenshots/s5.png)
 
 ## Notes on in-memory storage
 
