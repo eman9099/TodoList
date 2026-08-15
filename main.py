@@ -28,51 +28,63 @@ def init_db():
 
 init_db()
 
-app= FastAPI()
+app = FastAPI()
 
-tasks = [
-    {"id": 1, "title": "Buy milk", "done": False},
-    {"id": 2, "title": "Walk the dog", "done": False},
-    {"id": 3, "title": "Finish assignment", "done": True},
-]
 class TaskCreate(BaseModel):
-    title:str
+    title: str
+
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    done: bool | None = None
 
 
 @app.get("/")
 def read_root():
-    return{
+    return {
         "name": "Task API",
         "version": "1.0",
-        "endpoints":["/tasks"]
-           }
+        "endpoints": ["/tasks"]
+    }
+
 @app.get("/health")
 def health_check():
-    return{"status":"ok"}
+    return {"status": "ok"}
 
 @app.get("/tasks")
 def get_tasks():
-    return tasks
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM tasks").fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 
 @app.get("/tasks/{tasks_id}")
-def get_tasks(tasks_id:int):
-    for task in tasks:
-        if task["id"]==tasks_id:
-            return task
-    raise HTTPException(status_code=404, detail=f"Task {tasks_id} not found")
+def get_task(tasks_id: int):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (tasks_id,)).fetchone()
+    conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Task {tasks_id} not found")
+    return dict(row)
 
 @app.post("/tasks", status_code=201)
 def create_task(new_task: TaskCreate):
     if not new_task.title.strip():
         raise HTTPException(status_code=400, detail="Title is required")
 
-    next_id = max((task["id"] for task in tasks), default=0) + 1
-    task = {"id": next_id, "title": new_task.title, "done": False}
-    tasks.append(task)
-    return task
-class TaskUpdate(BaseModel):
-    title: str | None = None
-    done: bool | None = None
+    conn = get_db()
+    cursor = conn.execute(
+        "INSERT INTO tasks (title, done) VALUES (?, ?)",
+        (new_task.title, 0)
+    )
+    conn.commit()
+    new_id = cursor.lastrowid
+    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (new_id,)).fetchone()
+    conn.close()
+    return dict(row)
+
+# NOTE: PUT and DELETE below still use the old in-memory list.
+# We will replace these in Stage 3 to use the database too.
+tasks = []
 
 @app.put("/tasks/{tasks_id}")
 def update_task(tasks_id: int, updated: TaskUpdate):
