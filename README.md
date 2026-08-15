@@ -99,6 +99,47 @@ This marked every task as done directly in the database. Calling `GET /tasks` ri
 
 ![DB Browser - Execute SQL](screenshots/db-browser.png)
 
+## Bonus Stage 6 (A2) — AI vs me: SQLite migration
+
+I wrote my own spec from memory and asked an AI assistant to migrate the same API from in-memory storage to SQLite. The AI's version lives in `ai-version/main.py`, using its own database file (`ai_tasks.db`) so it never touches my real `tasks.db`.
+
+### My prompt
+
+> Migrate an existing FastAPI to-do task API from in-memory storage to SQLite. Use Python's built-in `sqlite3` module.
+>
+> The database file should be `tasks.db`, created automatically on startup. Create a `tasks` table if it doesn't already exist, with columns: `id` (integer primary key, autoincrement), `title` (text), `done` (integer, 0 or 1). Seed 3 example tasks only if the table is currently empty — restarting the app should never duplicate them.
+>
+> Keep these five endpoints with identical behavior to before:
+> - `GET /tasks` — return all tasks from the database
+> - `GET /tasks/{id}` — return one task; 404 with a JSON error if not found
+> - `POST /tasks` — insert a new task; 400 if title is missing/empty; 201 with the created row (including the database-assigned id) on success
+> - `PUT /tasks/{id}` — update title and/or done; 404 if not found, 400 if title is empty
+> - `DELETE /tasks/{id}` — delete the task; 204 on success, 404 if not found
+>
+> Use parameterized queries (`?` placeholders) everywhere — never insert user input directly into SQL strings.
+
+### Running it
+
+I fired my Stage 2/3 checkpoints at the AI's version (running on port 8001): `GET /tasks` returned the 3 seeded tasks, `POST /tasks` created a 4th task (201), and after restarting the server the seed did **not** duplicate — still exactly 4 tasks, proving persistence worked correctly on the first try.
+
+### What did the AI do better?
+
+It used a Python `with sqlite3.connect(...)` block for every query instead of manually calling `get_db()` and `conn.close()` like I did — the connection closes automatically even if an error happens partway through, which is safer than remembering to close it by hand every time. It also converted `done` to a real `true`/`false` boolean in every response, while my API returns the raw `0`/`1` straight from SQLite.
+
+### What did it get wrong or quietly ignore?
+
+Nothing broke any requirement — all endpoints, status codes, and the seed-once rule worked correctly.
+
+### What did my prompt forget to specify — and what did the AI decide for me?
+
+- I didn't say how to structure the startup logic, so the AI used FastAPI's `lifespan` pattern (the newer recommended way to run startup code) instead of just calling `init_db()` at the top of the file like I did.
+- I didn't specify the exact seed task titles, so the AI picked its own three examples instead of matching mine exactly.
+- I didn't say whether `done` should be returned as `0`/`1` or `true`/`false` in the JSON response — the AI chose to convert it to a proper boolean.
+
+### One rematch
+
+For the second attempt, I added to my prompt: *"Return `done` as the raw integer stored in the database (0 or 1), not as a boolean."* The regenerated version then matched my original API's response shape exactly.
+
 ## Bonus Stage 7 — AI vs me
 
 I wrote my own spec from memory (without looking back at the assignment doc) and asked an AI assistant to build the same API. The AI's code lives in `ai-version/` and was never mixed with my hand-built code.
