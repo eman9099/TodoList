@@ -1,8 +1,8 @@
 # Task API
 
-A small CRUD API built with **Python + FastAPI** that manages a to-do list. Data is stored in memory (no database) — it resets whenever the server restarts.
+A small CRUD API built with **Python + FastAPI** that manages a to-do list. Data is stored in a **SQLite database** (`tasks.db`) — it survives server restarts.
 
-Built as part of the FlyRank Internship — Backend Track, Week 2, Assignment A1.
+Built as part of the FlyRank Internship — Backend Track. Started in Week 2 (Assignment A1 — in-memory CRUD), extended in Week 3 (Assignment A2 — SQLite persistence).
 
 ## How to run it
 
@@ -83,9 +83,21 @@ The full CRUD cycle (create, read, update, delete) was tested using the interact
 ![Swagger UI - POST /tasks](screenshots/s4.png)
 ![Swagger UI - DELETE /tasks/{id}](screenshots/s5.png)
 
-## Notes on in-memory storage
+## Database (SQLite)
 
-Since tasks are stored in a plain Python list (not a database), restarting the server resets the list back to the 3 example tasks. This is expected — persistent storage is covered in a later assignment.
+**Why SQLite?** It's a single file, needs zero setup or separate server, and is built into Python (`import sqlite3` — nothing to install). Perfect for a small project like this.
+
+**Where the data lives:** `tasks.db`, created automatically the first time the app runs. The `tasks` table is created if it doesn't exist, and 3 example tasks are seeded only if the table is empty — restarting the server does not duplicate them or lose your data.
+
+**Exploring it directly:** the database can be opened in [DB Browser for SQLite](https://sqlitebrowser.org/) to view and query the data outside the API.
+
+Example query run in the "Execute SQL" tab:
+```sql
+UPDATE tasks SET done = 1;
+```
+This marked every task as done directly in the database. Calling `GET /tasks` right afterward (with no server restart) showed the change immediately — the API and DB Browser both read the same file, so there's no "syncing" step.
+
+![DB Browser - Execute SQL](screenshots/db-browser.png)
 
 ## Bonus Stage 7 — AI vs me
 
