@@ -1,10 +1,15 @@
 # Task API
 
-A small CRUD API built with **Python + FastAPI** that manages a to-do list. Data is stored in a **SQLite database** (`tasks.db`) — it survives server restarts.
+A small CRUD API built with **Python + FastAPI** that manages a to-do list. Data is stored in a **PostgreSQL database running in Docker** — the whole stack (app + database) starts with a single command.
 
-Built as part of the FlyRank Internship — Backend Track. Started in Week 2 (Assignment A1 — in-memory CRUD), extended in Week 3 (Assignment A2 — SQLite persistence).
+Built as part of the FlyRank Internship — Backend Track. Storage has evolved across three assignments:
+- **Week 2 (A1)** — in-memory list
+- **Week 3 (A2)** — SQLite file (`tasks.db`)
+- **Week 1 (A3)** — containerized PostgreSQL via Docker Compose (current)
 
 ## How to run it
+
+**One command, using Docker Compose:**
 
 1. Clone this repo and go into the folder:
    ```bash
@@ -12,26 +17,27 @@ Built as part of the FlyRank Internship — Backend Track. Started in Week 2 (As
    cd TodoList
    ```
 
-2. (Optional but recommended) create and activate a virtual environment:
+2. Copy the example environment file:
    ```bash
-   python -m venv venv
-   venv\Scripts\activate      # Windows
-   source venv/bin/activate   # Mac/Linux
+   cp .env.example .env
    ```
 
-3. Install the dependencies:
+3. Start the whole stack (API + PostgreSQL):
    ```bash
-   pip install fastapi uvicorn
+   docker compose up
    ```
 
-4. Run the server:
-   ```bash
-   uvicorn main:app --reload
-   ```
-
-5. Open your browser:
+4. Open your browser:
    - API root: http://127.0.0.1:8000/
    - Interactive docs (Swagger UI): http://127.0.0.1:8000/docs
+
+That's it — no Python install, no manual database setup. The `tasks` table and 3 example tasks are created automatically on first run.
+
+To stop everything:
+```bash
+docker compose down
+```
+(Your data survives this — it's kept in a Docker volume. To wipe the data too, run `docker compose down -v`.)
 
 ## Endpoints
 
@@ -98,6 +104,28 @@ UPDATE tasks SET done = 1;
 This marked every task as done directly in the database. Calling `GET /tasks` right afterward (with no server restart) showed the change immediately — the API and DB Browser both read the same file, so there's no "syncing" step.
 
 ![DB Browser - Execute SQL](screenshots/db-browser.png)
+
+## Database (PostgreSQL in Docker)
+
+**Why PostgreSQL + Docker?** SQLite (used in A2) is a single file — great for a small project, but it can't handle many programs writing to it at once, and it doesn't scale to real production traffic. PostgreSQL is a real database *server*, the same engine that powers most serious backends (FlyRank included). Docker lets us run it without installing Postgres directly on the machine — it's just a disposable, ready-made container that behaves identically on any computer, killing "works on my machine" problems.
+
+**How the stack is wired:**
+- `Dockerfile` builds the API into its own image.
+- `compose.yaml` defines two services: `api` (the FastAPI app) and `db` (the official `postgres:16` image), and starts both together with `docker compose up`.
+- A named volume (`taskdata`) keeps the database's files outside the container, so data survives a full `docker compose down` + `up` — proven by creating tasks, tearing the whole stack down, bringing it back up, and seeing the same tasks still there.
+- The database password lives in `.env` (git-ignored) — never hardcoded. `.env.example` is committed with the same keys so anyone cloning the repo knows what to set.
+- A healthcheck on the `db` service makes the `api` service wait until Postgres is actually ready to accept connections before starting, instead of just waiting for the container to exist.
+
+**Exploring the database directly**, using `psql` inside the running container:
+```bash
+docker exec -it taskdb psql -U postgres -d tasks
+```
+Then, inside the SQL prompt:
+```sql
+SELECT * FROM tasks;
+```
+
+![psql query result](screenshots/docker-result.png)
 
 ## Bonus Stage 6 (A2) — AI vs me: SQLite migration
 
